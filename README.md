@@ -56,13 +56,14 @@ These would need a replacement `app.py` in the launcher root, since the upstream
 | --- | --- | --- |
 | `GRADIO_SERVER_NAME` / `GRADIO_SERVER_PORT` | `127.0.0.1` / free port | local-only server |
 | `IRIS_MODEL_REPO` | `../models/iris-3b` | use the weights downloaded by Install |
+| `PYTHONUTF8` | `1` | the demo reads `presets.json` without an encoding; on Windows that garbles `×` and makes Generate fail with `Value: 1024Ã—1024 is not in the list of choices` |
 | `IRIS_OFFLOAD` | `1` | keep models on CPU, move one at a time to the GPU. Set to `0` in `start.js` if you have ~45 GB of VRAM. |
 
 ## API (programmatic access)
 
 The Gradio endpoints are named after the handler functions in `demo/app.py`: `/run` (text-to-image), `/run_depth` and `/run_upscale`. Replace the port with the one shown in Pinokio.
 
-`/run` takes: `prompt`, `negative` (negative prompt), `size` (one of `"768×1344"`, `"832×1280"`, `"896×1152"`, `"1024×1024"`, `"1152×896"`, `"1280×832"`, `"1344×768"`, width × height). The separator is the multiplication sign `×` (U+00D7), not the letter `x`. On Windows terminals and scripts, a literal `×` is often re-encoded and rejected with `Value: 1024Ã—1024 is not in the list of choices`, so the examples below write it as the escape `\u00d7`, which is plain ASCII, `steps`, `cfg_scale`, `seed`, `randomize` (random seed). It returns `(image, seed, info_html)`.
+`/run` takes: `prompt`, `negative` (negative prompt), `size` (one of `"768×1344"`, `"832×1280"`, `"896×1152"`, `"1024×1024"`, `"1152×896"`, `"1280×832"`, `"1344×768"`, width × height). The separator is the multiplication sign `×` (U+00D7), not the letter `x`. The examples below write it as the escape `\u00d7`, which is plain ASCII and safe in any Windows terminal or script, `steps`, `cfg_scale`, `seed`, `randomize` (random seed). It returns `(image, seed, info_html)`.
 
 ### Python (`gradio_client`)
 
