@@ -1,0 +1,5 @@
+env
+app
+models
+logs
+__pycache__

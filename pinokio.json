@@ -1,0 +1,5 @@
+{
+  "title": "Iris-3B",
+  "description": "Pixel-space text-to-image generation (no VAE), monocular depth estimation and 4x image restoration/upscaling with Iris-3B by Speridlabs",
+  "icon": "icon.png"
+}
