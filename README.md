@@ -41,13 +41,13 @@ These would need a replacement `app.py` in the launcher root, since the upstream
 
 1. Open this project in Pinokio and run **Install** once. It will:
    - clone `speridlabs/iris-3b` into `app/`,
-   - create a Python 3.11 venv in `env/` and `uv pip install -e ".[ui]"`,
+   - create a Python 3.11 venv in `app/env/` and `uv pip install -e ".[ui]"`,
    - install PyTorch 2.7.1 (CUDA 12.8 on NVIDIA, ROCm 6.3 on Linux AMD, CPU elsewhere) via `torch.js`,
    - download `speridlabs/iris-3b` into `models/iris-3b/` and `Qwen/Qwen3-VL-4B-Instruct` into the Hugging Face cache,
    - verify imports and write `env/.installed`.
 2. Run **Start**. Loading all three models takes a while; when Gradio prints its URL, Pinokio shows **Open Web UI**.
 3. **Update** pulls this launcher and `app/`, then reruns the install flow.
-4. **Reset** removes `env/`, `app/` and `models/`.
+4. **Reset** removes `env/` (install marker), `app/` (including its venv) and `models/`.
 5. **Save Disk Space** (`link.js`) deduplicates library files in the venv.
 
 `start.js` sets these environment variables:
@@ -62,7 +62,7 @@ These would need a replacement `app.py` in the launcher root, since the upstream
 
 The Gradio endpoints are named after the handler functions in `demo/app.py`: `/run` (text-to-image), `/run_depth` and `/run_upscale`. Replace the port with the one shown in Pinokio.
 
-`/run` takes: `prompt`, `negative` (negative prompt), `size` (one of `"768×1344"`, `"832×1280"`, `"896×1152"`, `"1024×1024"`, `"1152×896"`, `"1280×832"`, `"1344×768"`; note the `×` character, width × height), `steps`, `cfg_scale`, `seed`, `randomize` (random seed). It returns `(image, seed, info_html)`.
+`/run` takes: `prompt`, `negative` (negative prompt), `size` (one of `"768×1344"`, `"832×1280"`, `"896×1152"`, `"1024×1024"`, `"1152×896"`, `"1280×832"`, `"1344×768"`, width × height). The separator is the multiplication sign `×` (U+00D7), not the letter `x`. On Windows terminals and scripts, a literal `×` is often re-encoded and rejected with `Value: 1024Ã—1024 is not in the list of choices`, so the examples below write it as the escape `\u00d7`, which is plain ASCII, `steps`, `cfg_scale`, `seed`, `randomize` (random seed). It returns `(image, seed, info_html)`.
 
 ### Python (`gradio_client`)
 
@@ -75,7 +75,7 @@ client = Client("http://127.0.0.1:<port>")  # replace with your URL
 image_path, seed, info = client.predict(
     "a red fox sleeping in fresh snow, golden hour",  # prompt
     "",                                                # negative prompt
-    "1024×1024",                                       # size
+    "1024\u00d71024",                                  # size (U+00D7 multiplication sign)
     50,                                                # steps
     3.0,                                               # cfg_scale
     0,                                                 # seed
@@ -97,7 +97,7 @@ import { Client } from "@gradio/client";
 
 const client = await Client.connect("http://127.0.0.1:7860"); // replace port
 const result = await client.predict("/run", [
-  "a red fox sleeping in fresh snow, golden hour", "", "1024×1024", 50, 3.0, 0, false
+  "a red fox sleeping in fresh snow, golden hour", "", "1024\u00d71024", 50, 3.0, 0, false
 ]);
 console.log(result.data); // [image file metadata, seed, info html]
 ```
@@ -107,13 +107,13 @@ console.log(result.data); // [image file metadata, seed, info html]
 ```sh
 curl -X POST http://127.0.0.1:7860/gradio_api/call/run \
   -H 'Content-Type: application/json' \
-  -d '{"data":["a red fox sleeping in fresh snow, golden hour","","1024×1024",50,3.0,0,false]}'
+  -d '{"data":["a red fox sleeping in fresh snow, golden hour","","1024\u00d71024",50,3.0,0,false]}'
 
 # Replace EVENT_ID with event_id from the previous response.
 curl -N http://127.0.0.1:7860/gradio_api/call/run/EVENT_ID
 ```
 
-The running app's **View API** page shows the exact signatures for the installed Gradio version. The depth and upscale endpoints return HTML for the viewers rather than raw files; for raw outputs (`.npy` depth, upscaled PNG) use the upstream CLI scripts from the Pinokio terminal (inside `env`, from `app/`):
+The running app's **View API** page shows the exact signatures for the installed Gradio version. The depth and upscale endpoints return HTML for the viewers rather than raw files; for raw outputs (`.npy` depth, upscaled PNG) use the upstream CLI scripts from the Pinokio terminal (inside `app/env`, from `app/`):
 
 ```text
 python scripts/sample.py --checkpoint ../models/iris-3b --prompt "a red fox sleeping in fresh snow, golden hour"
@@ -129,4 +129,4 @@ python scripts/upscale.py photo.jpg --out upscaled
 ## Layout
 
 - Launcher scripts: `install.js`, `start.js`, `update.js`, `reset.js`, `link.js`, `torch.js`, `pinokio.js`, `pinokio.json`
-- Cloned at install time (git-ignored): `app/` (upstream repo), `env/` (venv), `models/` (weights)
+- Cloned at install time (git-ignored): `app/` (upstream repo, with the venv in `app/env/`), `env/.installed` (install marker), `models/` (weights)
