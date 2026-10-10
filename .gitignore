@@ -3,3 +3,4 @@ app
 models
 logs
 __pycache__
+outputs

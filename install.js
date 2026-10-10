@@ -45,12 +45,39 @@ module.exports = {
       }
     },
 
+    // Low VRAM install: remember the choice in models/.lite so update.js (which re-runs this script
+    // without params) keeps skipping depth/ and upscaler/. A full install clears the marker.
+    {
+      method: "fs.write",
+      when: "{{args && args.lite}}",
+      params: { path: "models/.lite", text: "text-to-image weights only" }
+    },
+    {
+      method: "fs.rm",
+      when: "{{args && args.full && exists('models/.lite')}}",
+      params: { path: "models/.lite" }
+    },
+
     // Download Iris-3B weights: text-to-image + depth/ + upscaler/ (~36 GB total)
     {
       method: "hf.download",
+      when: "{{!(args && args.lite) && !exists('models/.lite')}}",
       params: {
         "_": ["speridlabs/iris-3b"],
         "local-dir": "models/iris-3b"
+      }
+    },
+
+    // Low VRAM: text-to-image weights only (~12 GB), skipping depth/ and upscaler/
+    {
+      method: "shell.run",
+      when: "{{(args && args.lite) || exists('models/.lite')}}",
+      params: {
+        venv: "env",
+        path: "app",
+        message: [
+          "hf download speridlabs/iris-3b --local-dir ../models/iris-3b --exclude \"depth/*\" \"upscaler/*\""
+        ]
       }
     },
 

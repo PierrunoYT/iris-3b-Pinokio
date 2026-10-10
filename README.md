@@ -25,21 +25,22 @@ The launcher runs the official Gradio demo (`demo/app.py`) locally, with three t
 
 This launcher runs upstream's demo as-is, in its offload mode (`IRIS_OFFLOAD=1`). Estimated from upstream's README and `demo/app.py`, not measured:
 
-- **Text-to-image peaks at roughly 20 GB of VRAM.** The demo keeps the 3B model in FP32 (about 12 GB) and moves it to the GPU together with the Qwen3-VL-4B text encoder (about 8 GB). A 24 GB card (RTX 3090, 4090, A5000, ...) should work. 8, 12 and 16 GB cards will most likely run out of memory on the Generate tab.
+- **Text-to-image peaks at roughly 20 GB of VRAM.** The demo keeps the 3B model in FP32 (about 12 GB) and moves it to the GPU together with the Qwen3-VL-4B text encoder (about 8 GB). A 24 GB card (RTX 3090, 4090, A5000, ...) should work. 8, 12 and 16 GB cards will most likely run out of memory on the Generate tab; use **Generate (Low VRAM)** below instead.
 - **Depth and Upscale** each move only their own model (about 12 GB), so they should fit on a 16 GB card.
 - Offload mode keeps all three models in system RAM (about 45 GB), so low VRAM still needs plenty of RAM.
 
-Possible ways to lower the requirement (not implemented in this launcher):
+**Generate (Low VRAM)** menu entry (`lowvram.js` + `lowvram/sample_lowvram.py`): text-to-image only, for ~8 GB GPUs.
 
-- Hold the model in BF16 instead of FP32, which halves its weights from about 12 GB to about 6 GB.
-- Run the text encoder first, move it back to the CPU, then move the model to the GPU, so the two never share the GPU. That would bring text-to-image weight memory down to roughly 6-8 GB.
-- Add a tiled or CPU fallback for the upscaler.
-
-These would need a replacement `app.py` in the launcher root, since the upstream clone in `app/` should stay untouched. Activations at 1024x1024 in pixel space could still need several GB, and the BF16 cast may change output quality slightly. Both are untested, so 12-16 GB looks plausible and 8 GB is a long shot.
+- The Qwen3-VL text encoder runs on the CPU and is freed before the 3B model is loaded, so the two never share the GPU.
+- The 3B model is cast to BF16 (about 6 GB instead of 12 GB) and kept in system RAM; each transformer block is moved to the GPU only while it runs (block offload).
+- Measured on an RTX 4090 with the process capped at 8 GB (`torch.cuda.set_per_process_memory_fraction`): 768x768, 20 steps, peak **3.26 GiB VRAM**, clean output. Without offload, BF16 on the GPU ran out of memory at that cap. Not tested on a physical 8 GB card, and speed was not measured: expect it to be noticeably slower than the main UI, since blocks are copied to the GPU every step.
+- Needs roughly 8 GB of free system RAM for the text encoder, plus ~6 GB for the BF16 model. Lower the size or steps for faster runs; images are written to `outputs/`.
+- **Install (Low VRAM)** downloads only the text-to-image weights (~12 GB instead of ~36 GB) by excluding `depth/` and `upscaler/`, and records the choice in `models/.lite` so **Update** keeps skipping them. In that mode the stock Start button needs the missing weights for the Depth and Upscale tabs, so **Generate (Low VRAM)** becomes the default action. Run **Install (Full)** later to fetch everything.
+- Upstream's `app/` clone is not modified. The depth and upscale tabs still use the stock demo.
 
 ## How to use (Pinokio)
 
-1. Open this project in Pinokio and run **Install** once. It will:
+1. Open this project in Pinokio and run **Install (Full)** once (or **Install (Low VRAM)**, see below). It will:
    - clone `speridlabs/iris-3b` into `app/`,
    - create a Python 3.11 venv in `app/env/` and `uv pip install -e ".[ui]"`,
    - install PyTorch 2.7.1 (CUDA 12.8 on NVIDIA, ROCm 6.3 on Linux AMD, CPU elsewhere) via `torch.js`,
@@ -129,5 +130,5 @@ python scripts/upscale.py photo.jpg --out upscaled
 
 ## Layout
 
-- Launcher scripts: `install.js`, `start.js`, `update.js`, `reset.js`, `link.js`, `torch.js`, `pinokio.js`, `pinokio.json`
-- Cloned at install time (git-ignored): `app/` (upstream repo, with the venv in `app/env/`), `env/.installed` (install marker), `models/` (weights)
+- Launcher scripts: `install.js`, `start.js`, `update.js`, `reset.js`, `link.js`, `torch.js`, `lowvram.js` (+ `lowvram/sample_lowvram.py`), `pinokio.js`, `pinokio.json`
+- Cloned at install time (git-ignored): `app/` (upstream repo, with the venv in `app/env/`), `env/.installed` (install marker), `models/` (weights), `outputs/` (low-VRAM images)
